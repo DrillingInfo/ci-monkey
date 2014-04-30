@@ -1,0 +1,27 @@
+- job:
+    name: ci-monkey-github
+    description: Crawl the DIGlobal repo list and create Jenkins jobs for any repos without a jenkins folder
+    project-type: freestyle
+    logrotate:
+      daysToKeep: 60
+      numToKeep: -1
+      artifactDaysToKeep: 15 
+      artifactNumToKeep: -1
+    properties:
+      - github:
+          url: https://github.com/drillinginfo-private/cm-private/
+    scm:
+      - git:
+          url: ssh://git@github.com/drillinginfo-private/cm-private.git
+          branches:
+            - master
+          wipe-workspace: true
+          browser: githubweb
+          browser-url: https://github.com/drillinginfo-private/cm-private
+          git-tool: System Default Git
+    wrappers:
+      - timestamps
+    triggers:
+      - timed: '0 6 * * *'
+    builders:
+      - shell: './callCIMonkey.sh'

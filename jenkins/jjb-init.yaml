@@ -1,0 +1,38 @@
+- job:
+    name: jjb-init
+    description: Runs Jenkins Job Builder for initial job creation
+    project-type: freestyle
+    logrotate:
+      daysToKeep: 60
+      numToKeep: -1
+      artifactDaysToKeep: 15 
+      artifactNumToKeep: -1
+    parameters:
+      - string:
+          name: group
+          description: Enter the group that owns the repo
+      - string:
+          name: repo
+          description: Enter the name of the repo
+      - string:
+          name: branch
+          description: Enter the branch, default is HEAD
+          default: HEAD
+      - string:
+          name: url
+          description: Enter the git url
+          default: github.com
+    scm:
+      - git:
+          url: ssh://git@$url/$group/$repo.git
+          branches:
+            - $branch
+          wipe-workspace: true
+          browser: githubweb
+          browser-url: https://$url/$group/$repo/
+          git-tool: System Default Git
+    wrappers:
+      - timestamps
+    builders:
+      - shell: |
+               jenkins-jobs update jenkins
