@@ -9,14 +9,16 @@ jenkins=$6
 user1=$7
 user2=$8
 branch=$9
+startingLocation=$PWD
 #get list of repos
 curl -s -k -H "Authorization: token $token" $url/users/$group/repos?per_page=100 | grep \"name\": | sed s/\"name\":\ \"//g | sed s/\",//g > tmp
 while read repo; do
+  location=$group-$repo
   #iterate through repos looking for those without a jenkins folder
   j=`curl -s -k -H "Authorization: token $token" $url/repos/$group/$repo/contents/jenkins | { grep \"message\":\ \"Not\ Found\" || true; }`
   if [[ -n $j ]]; then
-    git clone git@$shortUrl:$group/$repo
-    cd $repo
+    git clone git@$shortUrl:$group/$repo $location
+    cd $location
     #get default branch and checkout it out
     default_branch=`curl -s -k -H "Authorization: token $token" $url/repos/$group/$repo | grep -m1 '"default_branch":' | sed s/'"default_branch": "'//g | sed s/'",'//g`
     git checkout $default_branch
@@ -24,26 +26,25 @@ while read repo; do
     mkdir jenkins
     #if scala project use the scala template
     if [ -a build.sbt ]; then
-      template="../scala.yaml"
-      script="../scala.sh"
+      template="../ci-monkey/scala.yaml"
+      script="../ci-monkey/scala.sh"
     #if a cookbook use the cookbook template
     elif [ -a metadata.rb ]; then
-      template="../cookbook.yaml"
-      script="../cookbook.sh"
+      template="../ci-monkey/cookbook.yaml"
+      script="../ci-monkey/cookbook.sh"
     #if grunt build use the grunt template
     elif [ -a Gruntfile.js ]; then
-      template="../grunt.yaml"
-      script="../grunt.sh"
+      template="../ci-monkey/grunt.yaml"
+      script="../ci-monkey/grunt.sh"
     #else laydown generic template
     else
-      template="../generic.yaml"
-      script="../generic.sh"
+      template="../ci-monkey/generic.yaml"
+      script="../ci-monkey/generic.sh"
     fi
-    cp $template jenkins/$repo.yaml
-    sed -i s/@repo@/$repo/g jenkins/$repo.yaml
+    sed s/@repo@/$repo/g $template > jenkins/$repo.yaml
     sed -i s/@group@/$group/g jenkins/$repo.yaml
-    sed -i s/@url@/$shortUrl/g jenkins/$repo.yaml
-    sed -i s/@apiUrl@/$apiUrl/g jenkins/$repo.yaml
+    sed -i s#@url@#$shortUrl#g jenkins/$repo.yaml
+    sed -i s#@apiUrl@#$apiUrl#g jenkins/$repo.yaml
     sed -i s/@user1@/$user1/g jenkins/$repo.yaml
     sed -i s/@user2@/$user2/g jenkins/$repo.yaml
     sed -i s/@token@/$token/g jenkins/$repo.yaml
@@ -94,5 +95,7 @@ while read repo; do
           \"url\": \"http://$jenkins/github-webhook/\"
         }
       }" -X POST $url/repos/$group/$repo/hooks
+  cd $startingLocation
+  rm -r $location
   fi
 done < tmp
