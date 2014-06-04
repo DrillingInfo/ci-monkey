@@ -37,7 +37,7 @@
 - builder:
     name: builder-macro
     builders:
-      - shell: /home/ubuntu/play-2.2.2/play "{task}"
+      - shell: sbt -sbt-launch-dir /jenkins/sbt-launchers "{task}"
 - builder:
     name: comment-pr-macro
     builders:
@@ -85,6 +85,7 @@
     name: @repo@-build
     description: Build @repo@
     project-type: freestyle
+    node: sbt
     logrotate:
         daysToKeep: -1
         numToKeep: 30
@@ -121,6 +122,7 @@
     name: @repo@-pull-request
     description: Build pull requests to the @repo@
     project-type: freestyle
+    node: sbt
     logrotate:
         daysToKeep: -1
         numToKeep: 30
