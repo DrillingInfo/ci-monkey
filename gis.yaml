@@ -38,9 +38,11 @@
     name: builder-macro
     builders:
       - shell: |
-               #!/bin/bash
-               set -ex
-               npm install;bower install;grunt
+               #!/bin/bash --login
+               rvm use 1.9.2
+               bundle install
+               bundle exec rake {task}
+
 - builder:
     name: comment-pr-macro
     builders:
@@ -65,10 +67,6 @@
           script-content: echo REAL_BRANCH=`git rev-parse HEAD | git branch --contains | grep -E -v '^(\*)'`>branch.prop
       - build-name:
           name: ${PROPFILE,file="branch.prop",property="REAL_BRANCH"}-#$BUILD_NUMBER
-- wrapper:
-    name: ansicolor-macro
-    wrappers:
-      - ansicolor
 - job:
     name: @repo@-build
     description: Build @repo@
@@ -82,18 +80,18 @@
       - prop-macro
     scm:
       - scm-macro:
-          branch: "@branch@"
+          branch: "HEAD"
           refspec: +refs/heads/*:refs/remotes/origin/*
           included: ''
           excluded: 'jenkins/.*'
     triggers:
       - main-trigger
     builders:
-      - builder-macro
+      - builder-macro:
+          task: deploy
       - comment-pr-macro
     wrappers:
       - wrapper-macro
-      - ansicolor-macro
 - job:
     name: @repo@-pull-request
     description: Build pull requests to the @repo@
@@ -114,9 +112,8 @@
     triggers:
       - pull-request-trigger
     builders:
-      - builder-macro
-    wrappers:
-      - ansicolor-macro
+      - builder-macro:
+          task: package
 - job:
     name: @repo@-jjb
     description: Run Jenkins Job Builder against the jenkins directory
@@ -130,7 +127,7 @@
       - prop-macro
     scm:
       - scm-macro:
-          branch: "@branch@"
+          branch: "HEAD"
           refspec: +refs/heads/*:refs/remotes/origin/*
           included: 'jenkins/.*'
           excluded: ''

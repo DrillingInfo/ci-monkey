@@ -36,6 +36,10 @@ while read repo; do
     elif [ -a Gruntfile.js ]; then
       template="../ci-monkey/grunt.yaml"
       script="../ci-monkey/grunt.sh"
+    #If Rakefile then its a gis build
+    elif [ -a Rakefile ]; then
+      template="../ci-monkey/gis.yaml"
+      script="../ci-monkey/gis.sh"
     #else laydown generic template
     else
       template="../ci-monkey/generic.yaml"
