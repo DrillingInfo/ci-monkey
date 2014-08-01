@@ -70,6 +70,11 @@
             - method:
                 healthy: 50
                 unhealthy: 40
+- publisher:
+    name: test-result-macro
+    publishers:
+      - junit:
+          results: target/test-reports/*.xml
 - wrapper:
     name: wrapper-macro
     wrappers:
@@ -99,25 +104,55 @@
           refspec: +refs/heads/*:refs/remotes/origin/*
           included: ''
           excluded: 'jenkins/.*'
+          local-branch: dev
     triggers:
       - main-trigger
     builders:
       - builder-macro:
-          task: test
+          task: jacoco:cover
       - builder-macro:
-          task: "-Dconfig.file=conf/test.conf jacoco:cover"
-      - builder-macro:
-          task: dist
-      - shell: echo \\nSHORT_SHA=`git rev-parse --short HEAD`>>version.properties
-      - inject:
-          properties-file: version.properties
-      - shell: echo Publish
+          task: universal:aetherDeploy
       - comment-pr-macro
     publishers:
       - pub-macro
+      - test-result-macro
     wrappers:
       - wrapper-macro
       - ansicolor-macro
+- job:
+    name: @repo@-release
+    description: Release @repo@
+    project-type: freestyle
+    node: sbt
+    logrotate:
+        daysToKeep: -1
+        numToKeep: 30
+        artifactDaysToKeep: 30
+        artifactNumToKeep: -1
+    properties:
+      - prop-macro
+    parameters:
+      - string:
+          description: What branch should be released?
+          name: release_branch
+          default: dev
+    scm:
+      - scm-macro:
+          branch: '${release_branch}'
+          refspec: +refs/heads/*:refs/remotes/origin/*
+          included: ''
+          excluded: 'jenkins/.*'
+          local-branch: "dev"
+    builders:
+      - shell: git branch --set-upstream ${release_branch} origin/${release_branch}
+      - builder-macro:
+          task: "release with-defaults"
+      - comment-pr-macro
+    wrappers:
+      - wrapper-macro
+      - ansicolor-macro
+    publishers:
+      - test-result-macro
 - job:
     name: @repo@-pull-request
     description: Build pull requests to the @repo@
