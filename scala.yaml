@@ -109,8 +109,6 @@
       - main-trigger
     builders:
       - builder-macro:
-          task: test
-      - builder-macro:
           task: jacoco:cover
       - builder-macro:
           task: universal:aetherDeploy
