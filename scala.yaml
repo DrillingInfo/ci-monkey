@@ -147,7 +147,6 @@
       - shell: git branch --set-upstream ${release_branch} origin/${release_branch}
       - builder-macro:
           task: "release with-defaults"
-      - comment-pr-macro
     wrappers:
       - wrapper-macro
       - ansicolor-macro
