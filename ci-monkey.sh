@@ -54,6 +54,8 @@ while read repo; do
     sed -i s/@token@/$token/g jenkins/$repo.yaml
     sed -i s/@branch@/$branch/g jenkins/$repo.yaml
     #create jenkins jobs
+    curl "http://nexus2.drillinginfo.com:8081/nexus/service/local/artifact/maven/redirect?r=releases&g=com.drillinginfo.cm&a=jjb-templates&p=yaml&v=RELEASE" -Lo jenkins/jjb-templates-latest.yaml
+    curl "http://nexus2.drillinginfo.com:8081/nexus/service/local/artifact/maven/redirect?r=releases&g=com.drillinginfo.cm&a=jjb-macros&p=yaml&v=RELEASE" -Lo jenkins/jjb-macros-latest.yaml
     jenkins-jobs update jenkins
     #run script to further customize repo
     . ./$script
