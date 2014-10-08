@@ -1,0 +1,235 @@
+- job-template:
+    name: "{name}-build"
+    description: "Build {repo}"
+    project-type: freestyle
+    node: "{type}"
+    logrotate:
+        daysToKeep: -1
+        numToKeep: 30
+        artifactDaysToKeep: 30
+        artifactNumToKeep: -1
+    properties:
+      - prop-macro:
+          org: "{organization}"
+          repo: "{repo}"
+    scm:
+      - scm-macro:
+          org: "{organization}"
+          repo: "{repo}"
+          branch: "$default_branch"
+          refspec: +refs/heads/*:refs/remotes/origin/*
+          included: ''
+          excluded: 'jenkins/.*'
+          excluded2: 'acceptance-test/.*'
+          local-branch: "$default_branch"
+    triggers:
+      - "{type}-trigger"
+      - "{build-results-trigger}-trigger"
+    builders:
+      - "{type}-builder"
+      - comment-pr-macro:
+          org: "{organization}"
+          repo: "{repo}"
+    publishers:
+      - "{type}-publisher"
+    wrappers:
+      - build-name-macro
+      - "{type}-wrapper"
+- job-template:
+    name: "{name}-branch-build"
+    description: "Build {repo}"
+    project-type: freestyle
+    node: "{type}"
+    logrotate:
+        daysToKeep: -1
+        numToKeep: 30
+        artifactDaysToKeep: 30
+        artifactNumToKeep: -1
+    properties:
+      - prop-macro:
+          org: "{organization}"
+          repo: "{repo}"
+    parameters:
+      - string:
+          name: branch
+          description: "Enter the branch to build"
+    scm:
+      - scm-macro:
+          org: "{organization}"
+          repo: "{repo}"
+          branch: "$branch"
+          refspec: +refs/heads/*:refs/remotes/origin/*
+          included: ''
+          excluded: 'jenkins/.*'
+          excluded2: 'acceptance-test/.*'
+          local-branch: "$branch"
+    builders:
+      - "{type}-builder"
+      - comment-pr-macro:
+          org: "{organization}"
+          repo: "{repo}"
+      - inject:
+          properties-file: dist/version.properties
+    publishers:
+      - "{type}-publisher"
+      - email-ext:
+          recipients: [EMAIL]
+          content-type: html
+          subject: "{repo} has been released"
+          body: "{repo} artifact version is <b>${{version}}</b>"
+          attach-build-log: true
+          success: true
+    wrappers:
+      - build-name-macro
+      - "{type}-wrapper"
+- job-template:
+    name: "{name}-pull-request"
+    description: Build pull requests to the {repo} repo!
+    project-type: freestyle
+    node: "{type}"
+    logrotate:
+        daysToKeep: -1
+        numToKeep: 30
+        artifactDaysToKeep: 30
+        artifactNumToKeep: -1
+    properties:
+      - prop-macro:
+          org: "{organization}"
+          repo: "{repo}"
+    scm:
+      - scm-macro:
+          org: "{organization}"
+          repo: "{repo}"
+          branch: "${{sha1}}"
+          refspec: +refs/pull/*:refs/remotes/origin/pr/*
+          included: ''
+          excluded: 'jenkins/.*'
+          excluded2: 'acceptance-test/.*'
+          local-branch: "pr"
+    triggers:
+      - pull-request-trigger:
+          owner1: carcher
+          owner2: gsymons
+          owner3: kyrsten-kelly
+          org: "{organization}"
+    builders:
+      - "{type}-pull-request-builder"
+    wrappers:
+      - "{type}-wrapper"
+- job-template:
+    name: "{name}-jjb"
+    description: Run Jenkins Job Builder against the jenkins directory!
+    project-type: freestyle
+    node: jjb
+    logrotate:
+        daysToKeep: -1
+        numToKeep: 30
+        artifactDaysToKeep: 30
+        artifactNumToKeep: -1
+    properties:
+      - prop-macro:
+          org: "{organization}"
+          repo: "{repo}"
+    scm:
+      - scm-macro:
+          org: "{organization}"
+          repo: "{repo}"
+          branch: "$default_branch"
+          refspec: +refs/heads/*:refs/remotes/origin/*
+          included: 'jenkins/.*'
+          excluded: ''
+          excluded2: ''
+          local-branch: "$default_branch"
+    triggers:
+      - main-trigger
+    builders:
+      - shell: |
+               #rm -rf /jenkins/.cache/jenkins_jobs
+               curl "http://[NEXUSURL]/nexus/service/local/artifact/maven/redirect?r=releases&g=com.drillinginfo.cm&a=jjb-templates&p=yaml&v=RELEASE" -Lo jenkins/jjb-templates-latest.yaml
+               curl "http://[NEXUSURL]/nexus/service/local/artifact/maven/redirect?r=releases&g=com.drillinginfo.cm&a=jjb-macros&p=yaml&v=RELEASE" -Lo jenkins/jjb-macros-latest.yaml
+               jenkins-jobs update jenkins
+      - comment-pr-macro:
+          org: "{organization}"
+          repo: "{repo}"
+    publishers:
+      - trigger:
+          project: "{name}-build"
+      - default-publisher
+    wrappers:
+      - build-name-macro
+      - "{type}-wrapper"
+- job-template:
+    name: "{name}-release"
+    description: "Release {name}"
+    project-type: freestyle
+    node: "{type}"
+    logrotate:
+        daysToKeep: -1
+        numToKeep: 30
+        artifactDaysToKeep: 30
+        artifactNumToKeep: -1
+    properties:
+      - prop-macro:
+          org: "{organization}"
+          repo: "{repo}"
+    parameters:
+      - string:
+          description: What branch should be released?
+          name: release_branch
+          default: dev
+    scm:
+      - scm-macro:
+          org: "{organization}"
+          repo: "{repo}"
+          branch: '$release_branch'
+          refspec: +refs/heads/*:refs/remotes/origin/*
+          included: ''
+          excluded: 'jenkins/.*'
+          excluded2: ''
+          local-branch: "$release_branch"
+    builders:
+      - "{type}-release-builder"
+    wrappers:
+      - "{type}-wrapper"
+    publishers:
+      - "{type}-publisher"
+- job-template:
+    name: "{name}-test-framework"
+    description: Uploads the test framework jar
+    project-type: freestyle
+    logrotate:
+        daysToKeep: -1
+        numToKeep: 30
+        artifactDaysToKeep: 30
+        artifactNumToKeep: -1
+    properties:
+      - prop-macro:
+          org: [ORG]
+          repo: [REPO]
+    scm:
+      - scm-macro:
+          org: "{organization}"
+          repo: "{repo}"
+          branch: "$default_branch"
+          refspec: +refs/heads/*:refs/remotes/origin/*
+          included: 'acceptance-test/.*'
+          excluded: ''
+          excluded2: ''
+          excluded2: ''
+          local-branch: "$default_branch"
+    triggers:
+      - main-trigger
+    builders:
+      - gradle:
+          wrapper: true
+          executable: true
+          use-root-dir: true
+          root-build-script-dir: "$workspace/acceptance-test"
+          switches:
+            - "-g /[USERDIR]/.gradle"
+          tasks: uploadArchives
+      - comment-pr-macro:
+          org: "{organization}"
+          repo: "{repo}"
+    wrappers:
+      - build-name-macro

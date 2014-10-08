@@ -1,0 +1,408 @@
+- property:
+    name: prop-macro
+    properties:
+      - github:
+          url: 'https://git.drillinginfo.com/{org}/{repo}/'
+      - inject:
+          script-content: |
+                          #!/bin/bash -ex
+                          {{ rm -rf /jenkins/workspace/$JOB_NAME || true; }}
+                          mkdir -p /jenkins/workspace/$JOB_NAME
+                          echo default_branch=`curl -s -k -H "Authorization: token [TOKEN]" "https://[API PATH]/repos/{org}/{repo}" | grep -om 1 -e default_branch\\":\\ \\"[A-Za-z0-9\._-]\\\+ | sed s/default_branch\\":\\ \\"//g` > /jenkins/workspace/$JOB_NAME/properties.prop
+          properties-file: "/jenkins/workspace/$JOB_NAME/properties.prop"
+- scm:
+    name: scm-macro
+    scm:
+      - git:
+          url: 'ssh://git@[URL]/{org}/{repo}.git'
+          branches:
+            - '{branch}'
+          refspec: '{refspec}'
+          included-regions:
+            - '{included}'
+          excluded-regions:
+            - '{excluded}'
+            - '{excluded2}'
+          browser: githubweb
+          skip-tag: true
+          browser-url: 'https://[URL]/{org}/{repo}/'
+          git-tool: System Default Git
+          local-branch: "{local-branch}"
+- trigger:
+    name: pull-request-trigger
+    triggers:
+      - github-pull-request:
+          admin-list:
+            - '{owner1}'
+            - '{owner2}'
+            - '{owner3}'
+          org-list:
+            - '{org}'
+          github-hooks: true
+- trigger:
+    name: main-trigger
+    triggers:
+      - github
+      - pollscm: ''
+- trigger:
+    name: javascript-trigger
+    triggers:
+      - main-trigger
+- trigger:
+    name: javascript-gh-pages-trigger
+    triggers:
+      - main-trigger
+- trigger:
+    name: berks-trigger
+    triggers:
+      - main-trigger
+- trigger:
+    name: cookbook-trigger
+    triggers:
+      - main-trigger
+- trigger:
+    name: sbt-trigger
+    triggers:
+      - main-trigger
+- trigger:
+    name: elasticsearch-trigger
+    triggers:
+      - main-trigger
+- trigger:
+    name: sbt-no-jacoco-trigger
+    triggers:
+      - main-trigger
+- trigger:
+    name: sbt-no-jacoco-publish-jar-trigger
+    triggers:
+      - main-trigger
+- trigger:
+    name: gis-trigger
+    triggers:
+      - main-trigger
+- trigger:
+    name: unknown-trigger
+    triggers:
+      - main-trigger
+- trigger:
+    name: app-trigger
+    triggers:
+      - main-trigger
+      - build-result:
+          cron: '* * * * *'
+          groups:
+            - jobs:
+                - [REPO1]
+                - [REPO2]
+                - [REPO3]
+                - [REPO4]
+- trigger:
+    name: apple-core-trigger
+    triggers:
+      - build-result:
+          cron: '* * * * *'
+          groups:
+            - jobs:
+                - [REPO1]
+                - [REPO2]
+                - [REPO3]
+                - [REPO4]
+- trigger:
+    name: "-trigger"
+    triggers: ""
+- builder:
+    name: upload-artifact
+    builders:
+      - inject:
+          properties-file: "{property-file}"
+      - maven-target:
+          goals: deploy:deploy-file -B
+          maven-version: Jenkins automatic Maven
+          properties:
+            - "url=http://[NEXUS URL]/nexus/content/repositories/releases"
+            - "repositoryId=releases"
+            - "groupId=[GROUPID]"
+            - "artifactId={artifactId}"
+            - "version={version}"
+            - "packaging=zip"
+            - "file={file}"
+- builder:
+    name: javascript-pull-request-builder
+    builders:
+      - shell: |
+               #!/bin/bash
+               set -ex
+               npm install;bower install;grunt --mocha-reporter spec --connect-port $CONNECT_PORT
+- builder:
+    name: javascript-builder
+    builders:
+      - javascript-pull-request-builder
+- builder:
+    name: javascript-gh-pages-builder
+    builders:
+      - javascript-pull-request-builder
+      - shell: grunt site:publish
+- builder:
+    name: javascript-gh-pages-pull-request-builder
+    builders:
+      - javascript-pull-request-builder
+- builder:
+    name: bundle-exec
+    builders:
+      - shell: |
+               #!/bin/bash --login
+               rvm install 1.9.3-p429 --verify-downloads 1 --autolibs=0
+               rvm use --create 1.9.3-p429@cookbooks
+               bundle install --without dev --path bundle
+               bundle exec rake {task}
+- builder:
+    name: cookbook-builder
+    builders:
+      - bundle-exec:
+          task: ci:spec
+- builder:
+    name: cookbook-builder-pull-request-builder
+    builders:
+      - bundle-exec:
+          task: ci:spec
+- builder:
+    name: gis-builder
+    builders:
+      - bundle-exec:
+          task: deploy
+- builder:
+    name: gis-pull-request-builder
+    builders:
+      - bundle-exec:
+          task: package
+- builder:
+    name: berks-builder
+    builders:
+      - shell: |
+               PATH=/opt/rbenv/shims:/opt/rbenv/bin:/opt/rbenv/plugins/ruby_build/bin:$PATH
+               berks upload --no-freeze --skip-dependencies -c ~/.berkshelf/config.json.prodchef
+               berks upload --no-freeze --skip-dependencies -c ~/.berkshelf/config.json.devchef
+- builder:
+    name: app-builder
+    builders:
+      - app-default-builder:
+          task: package
+      - upload-artifact:
+          property-file: dist/version.properties
+          artifactId: $artifactId
+          version: $version
+          file: dist/$artifactId-$version.zip
+- builder:
+    name: app-pull-request-builder
+    builders:
+      - app-default-builder:
+          task: build
+- builder:
+    name: app-default-builder
+    builders:
+      - shell: |
+               #!/bin/bash
+               set -ex
+               npm install;bower install;grunt {task} --build_number
+- builder:
+    name: elasticsearch-builder
+    builders:
+      - elasticsearch-pull-request-builder
+      - sbt-default-builder:
+          task: dist
+      - shell: echo \\nSHORT_SHA=`git rev-parse --short HEAD`>>version.properties
+      - upload-artifact:
+          property-file: version.properties
+          artifactId: $artifactId
+          version: $version+$JENKINS_INSTANCE.$BUILD_NUMBER.$SHORT_SHA
+          file: target/universal/$artifactId-$version.zip
+- builder:
+    name: elasticsearch-pull-request-builder
+    builders:
+      - sbt-default-builder:
+          task: test
+- builder:
+    name: sbt-default-builder
+    builders:
+      - shell: |
+               test -d target || mkdir target
+               sbt -sbt-launch-dir /jenkins/sbt-launchers -Dconfig.file=test/test.conf -Dlogger.file=test/test-logger.xml "{task}"
+- builder:
+    name: sbt-builder
+    builders:
+      - sbt-default-builder:
+          task: jacoco:cover
+      - sbt-default-builder:
+          task: universal:aetherDeploy
+- builder:
+    name: sbt-pull-request-builder
+    builders:
+      - sbt-default-builder:
+          task: test
+- builder:
+    name: sbt-release-builder
+    builders:
+      - shell: git branch --set-upstream $release_branch origin/$release_branch
+      - sbt-default-builder:
+          task: "release with-defaults"
+- builder:
+    name: sbt-no-jacoco-builder
+    builders:
+      - elasticsearch-builder
+- builder:
+    name: sbt-no-jacoco-publish-jar-builder
+    builders:
+      - sbt-default-builder:
+          task: test
+      - sbt-default-builder:
+          task: publish
+- builder:
+    name: sbt-no-jacoco-pull-request-builder
+    builders:
+      - elasticsearch-pull-request-builder
+- builder:
+    name: sbt-no-jacoco-publish-jar-pull-request-builder
+    builders:
+      - elasticsearch-pull-request-builder
+- builder:
+    name: comment-pr-macro
+    builders:
+      - shell: |
+               #!/bin/bash
+               set -ex
+               group='{org}'
+               repo='{repo}'
+               mpr=`git log -1 | grep -oe "Merge pull request #[0-9]*" | grep -oe [0-9]* | cat`
+                #find out if the pull request has already been commented
+                commented=`curl -k -H "Authorization: token [TOKEN]" https://[URL]/repos/$group/$repo/issues/$mpr/comments | grep "$JOB_NAME number [0-9]* integrated pull request" | cat`
+                if [[ -z $commented ]]; then
+                 #Comment on pull request the build it was integrated in
+                 if [[ -n "$mpr" ]]; then
+                   curl -k -H "Authorization: token [TOKEN]" -d "{{\"body\":\"$JOB_NAME number $BUILD_NUMBER integrated pull request #$mpr.  For details see: $BUILD_URL\"}}" -X POST https://[URL]/repos/$group/$repo/issues/$mpr/comments
+                 fi
+               fi
+- builder:
+    name: unknown-builder
+    builders:
+      - shell: echo I NEED SOMETHING TO DO;exit 1
+- builder:
+    name: unknown-pull-request-builder
+    builders:
+      - unknown-builder
+- publisher:
+    name: default-publisher
+    publishers:
+      - jabber:
+          strategy: change
+          group-targets:
+            - "[HIPCHAT ROOM]"
+- publisher:
+    name: javascript-publisher
+    publishers:
+      - default-publisher
+- publisher:
+    name: javascript-gh-pages-publisher
+    publishers:
+      - default-publisher
+- publisher:
+    name: app-publisher
+    publishers:
+      - default-publisher
+- publisher:
+    name: berks-publisher
+    publishers:
+      - default-publisher
+- publisher:
+    name: cookbook-publisher
+    publishers:
+      - default-publisher
+- publisher:
+    name: elasticsearch-publisher
+    publishers:
+      - default-publisher
+      - jacoco:
+          exec-pattern: "**/target/scala-2.10/jacoco/**.exec"
+          class-pattern: "**/target/scala-2.10/classes"
+          source-pattern: "**/app"
+          status-update: true
+          targets:
+            - branch:
+                health: 10
+                unhealthy: 20
+            - method:
+                healthy: 50
+                unhealthy: 40
+- publisher:
+    name: sbt-publisher
+    publishers:
+      - default-publisher
+      - elasticsearch-publisher
+      - junit:
+          results: target/test-reports/*.xml
+- publisher:
+    name: sbt-no-jacoco-publisher
+    publishers:
+      - default-publisher
+- publisher:
+    name: sbt-no-jacoco-publish-jar-publisher
+    publishers:
+      - default-publisher
+- publisher:
+    name: gis-publisher
+    publishers:
+      - default-publisher
+- publisher:
+    name: unknown-publisher
+    publishers:
+      - default-publisher
+- wrapper:
+    name: build-name-macro
+    wrappers:
+      - build-name:
+          name: ${ENV,var="GIT_BRANCH"}-#$BUILD_NUMBER
+- wrapper:
+    name: javascript-wrapper
+    wrappers:
+      - ansicolor
+      - port-allocator:
+          name: CONNECT_PORT
+- wrapper:
+    name: javascript-gh-pages-wrapper
+    wrappers:
+      - javascript-wrapper
+- wrapper:
+    name: app-wrapper
+    wrappers:
+      - ansicolor
+- wrapper:
+    name: berks-wrapper
+    wrappers:
+      - ansicolor
+- wrapper:
+    name: cookbook-wrapper
+    wrappers:
+      - ansicolor
+- wrapper:
+    name: elasticsearch-wrapper
+    wrappers:
+      - ansicolor
+- wrapper:
+    name: sbt-wrapper
+    wrappers:
+      - ansicolor
+- wrapper:
+    name: sbt-no-jacoco-wrapper
+    wrappers:
+      - ansicolor
+- wrapper:
+    name: sbt-no-jacoco-publish-jar-wrapper
+    wrappers:
+      - ansicolor
+- wrapper:
+    name: gis-wrapper
+    wrappers:
+      - ansicolor
+- wrapper:
+    name: unknown-wrapper
+    wrappers:
+      - ansicolor
