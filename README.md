@@ -44,29 +44,12 @@ Pre-requisites
 ---
 * jenkins job builder
 
-Future
+Travis CI for Jenkins
 ---
-I want this repo to lay down yamls that are much smaller than the current
-templates are.  In the future I see this going much like travis-ci where
-the build in source is very minimal and just describes a few important
-details like what version to build with etc.  This can be accomplished
-with making the macros and job templates into external resources that
-are downloaded upon the JJB run.  Then when JJB runs it will merge the
-macros and templates and the repo-specific yaml into one and create the
-jobs appropriately.
-
-Below is the future yaml I have in mind.  It will create three jobs one
-for the main build, one for the pull-request build, and one for the JJB
-build.  Then it specifies the type of build it is and the macros and
-templates pick up from there.
-```
-- project:
-    name: map-widget
-    organization: DIGlobal
-    jobs:
-      - "{name}-build":
-          type: "javascript"
-      - "{name}-pull-request":
-          type: "javascript"
-      - "{name}-jjb"
-```
+The templates for repos now are much smaller and more inline with what travis
+ci does, where you only have a few lines in the yaml and the rest is
+centralized.  Sample macros and templates files are located in the repository
+as jjb-macros-latest.yaml and jjb-templates-latest.yaml.  The yaml files that
+go in the repository have been updated to work with the macros and templates.
+There are a few tokens that need to be replaced in the macros and templates
+files.  They are denoted with square brackets.

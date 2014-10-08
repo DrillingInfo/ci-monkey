@@ -1,5 +1,5 @@
 - project:
-    name: @repo@
+    name: "di-cookbooks-@repo@"
     repo: @repo@
     organization: @group@
     type: cookbook
