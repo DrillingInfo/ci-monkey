@@ -83,7 +83,7 @@ while read repo; do
     #Set IFS back to a space
     IFS=' '
     #add changes to repo and push to default branch
-    git add jenkins README.md
+    git add jenkins/$repo.yaml README.md
     #add changes made in script
     addChanges
     git commit -m "Adding Jenkins Jobs and build badge"
