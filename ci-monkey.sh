@@ -1,14 +1,6 @@
 #!/bin/bash
 set -ex
 group=$1
-shortUrl=$2
-url=$3
-apiUrl=$4
-token=$5
-jenkins=$6
-user1=$7
-user2=$8
-branch=$9
 startingLocation=$PWD
 #get list of repos
 curl -s -k -H "Authorization: token $token" $url/users/$group/repos?per_page=100 | grep \"name\": | sed s/\"name\":\ \"//g | sed s/\",//g > tmp
@@ -101,6 +93,21 @@ while read repo; do
           \"url\": \"http://$jenkins/github-webhook/\"
         }
       }" -X POST $url/repos/$group/$repo/hooks
+    curl -s -k -H "Authorization: token $token" -d "
+    {
+      \"name\": \"rally\",
+      \"active\": true,
+      \"events\": [
+        \"push\" ],
+      \"config\": {
+        \"server\": \"$rally_server\",
+        \"username\": \"$rally_username\",
+        \"workspace\": \"$rally_workspace\",
+        \"repository\": \"\",
+        \"password\": \"$rally_password\"
+      }
+    }" -X POST $url/repos/$group/$repo/hooks
+
   cd $startingLocation
   rm -r $location
   fi
