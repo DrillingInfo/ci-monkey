@@ -32,6 +32,10 @@ while read repo; do
     elif [ -a Rakefile ]; then
       template="../ci-monkey/gis.yaml"
       script="../ci-monkey/gis.sh"
+    #If Go build
+    elif [ -a main.go ]; then
+      template="../ci-monkey/go.yaml"
+      script="../ci-monkey/go.sh"
     #else laydown generic template
     else
       template="../ci-monkey/generic.yaml"

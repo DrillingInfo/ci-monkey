@@ -1,0 +1,10 @@
+- project:
+    name: @repo@
+    repo: @repo@
+    organization: @group@
+    type: go
+    build-results-trigger: ""
+    jobs:
+      - "{name}-build"
+      - "{name}-pull-request"
+      - "{name}-jjb"
