@@ -4,8 +4,9 @@
     organization: @group@
     type: sbt
     build-results-trigger: ""
+    dockerfile_artifact_path: target/universal/@repo@.zip
     jobs:
-      - "{name}-build"
-      - "{name}-release"
+      - "{name}-docker-build-publish"
+      - "{name}-docker-release"
       - "{name}-pull-request"
       - "{name}-jjb"
