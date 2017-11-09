@@ -6,7 +6,7 @@
     build-results-trigger: ""
     dockerfile_artifact_path: target/universal/@repo@.zip
     jobs:
-      - "{name}-docker-build-publish"
+      - "{name}-docker-prerelease"
       - "{name}-docker-release"
       - "{name}-pull-request"
       - "{name}-jjb"
